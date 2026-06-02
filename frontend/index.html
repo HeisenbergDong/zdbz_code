@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campus Ops Lite - 校园工单协同系统</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>🏫 Campus Ops Lite</h1>
+            <p class="subtitle">校园工单协同系统</p>
+        </header>
+
+        <section class="stats-section">
+            <h2>📊 统计摘要</h2>
+            <div class="stats-cards" id="statsCards">
+                <div class="stat-card">
+                    <span class="stat-label">总工单</span>
+                    <span class="stat-value" id="totalCount">0</span>
+                </div>
+                <div class="stat-card pending">
+                    <span class="stat-label">待处理</span>
+                    <span class="stat-value" id="pendingCount">0</span>
+                </div>
+                <div class="stat-card processing">
+                    <span class="stat-label">处理中</span>
+                    <span class="stat-value" id="processingCount">0</span>
+                </div>
+                <div class="stat-card completed">
+                    <span class="stat-label">已完成</span>
+                    <span class="stat-value" id="completedCount">0</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="action-section">
+            <div class="filter-group">
+                <label for="statusFilter">🔍 按状态筛选：</label>
+                <select id="statusFilter">
+                    <option value="">全部</option>
+                    <option value="pending">待处理</option>
+                    <option value="processing">处理中</option>
+                    <option value="completed">已完成</option>
+                </select>
+            </div>
+            <button class="btn btn-primary" id="addTicketBtn">➕ 新增工单</button>
+        </section>
+
+        <section class="ticket-section">
+            <h2>📋 工单列表</h2>
+            <div class="ticket-list" id="ticketList">
+            </div>
+        </section>
+
+        <div class="modal" id="ticketModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="modalTitle">新增工单</h3>
+                    <span class="close" id="closeModal">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <form id="ticketForm">
+                        <div class="form-group">
+                            <label for="title">标题 *</label>
+                            <input type="text" id="title" name="title" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="priority">优先级 *</label>
+                            <select id="priority" name="priority" required>
+                                <option value="low">低</option>
+                                <option value="medium" selected>中</option>
+                                <option value="high">高</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="assignee">负责人 *</label>
+                            <input type="text" id="assignee" name="assignee" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">提交</button>
+                        <button type="button" class="btn btn-secondary" id="cancelBtn">取消</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
