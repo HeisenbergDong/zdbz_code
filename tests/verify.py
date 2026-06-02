@@ -2,47 +2,76 @@ import sys
 import os
 import json
 import shutil
-from datetime import datetime
+from datetime import datetime, timedelta
 
 os.environ['PYTHONDONTWRITEBYTECODE'] = '1'
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
 
-from models import Ticket, load_tickets, save_tickets, STATUS_OPTIONS, PRIORITY_OPTIONS, DATA_FILE
+from models import (Ticket, load_tickets, save_tickets, STATUS_OPTIONS,
+                    PRIORITY_OPTIONS, GROUP_OPTIONS, VALID_TRANSITIONS,
+                    DATA_FILE)
 import services
 
 BACKUP_FILE = DATA_FILE + '.bak'
-TEST_DATA_FILE = os.path.join(os.path.dirname(__file__), 'test_tickets.json')
+
+ORIGINAL_DATA = None
+
 
 def backup_data():
+    global ORIGINAL_DATA
     if os.path.exists(DATA_FILE):
+        with open(DATA_FILE, 'r', encoding='utf-8') as f:
+            ORIGINAL_DATA = f.read()
         shutil.copy2(DATA_FILE, BACKUP_FILE)
 
+
 def restore_data():
-    if os.path.exists(BACKUP_FILE):
+    global ORIGINAL_DATA
+    if ORIGINAL_DATA is not None:
+        with open(DATA_FILE, 'w', encoding='utf-8') as f:
+            f.write(ORIGINAL_DATA)
+        if os.path.exists(BACKUP_FILE):
+            os.remove(BACKUP_FILE)
+    elif os.path.exists(BACKUP_FILE):
         shutil.move(BACKUP_FILE, DATA_FILE)
 
-def setup_test_data():
-    test_data = [
+
+def write_test_data(tickets_data):
+    with open(DATA_FILE, 'w', encoding='utf-8') as f:
+        json.dump(tickets_data, f, ensure_ascii=False, indent=2)
+
+
+def setup_basic_data():
+    write_test_data([
         {
-            "id": "TEST-001",
-            "title": "测试工单1",
-            "status": "pending",
-            "priority": "high",
-            "assignee": "测试员A",
+            "id": "VT-001", "title": "test ticket one", "status": "new",
+            "priority": "high", "assignee": "", "group": "dormitory",
+            "location": "5-301", "contact": "13800001111", "deadline": None,
+            "audit_log": [{"time": "2026-06-01 09:00:00", "action": "created", "detail": "status=new", "operator": "system"}],
+            "updated_at": "2026-06-01 09:00:00"
+        },
+        {
+            "id": "VT-002", "title": "test ticket two", "status": "assigned",
+            "priority": "medium", "assignee": "Zhang", "group": "it_center",
+            "location": "Lib-201", "contact": "13900002222", "deadline": None,
+            "audit_log": [{"time": "2026-06-01 10:00:00", "action": "created", "detail": "status=new", "operator": "system"}],
             "updated_at": "2026-06-01 10:00:00"
         },
         {
-            "id": "TEST-002",
-            "title": "测试工单2",
-            "status": "processing",
-            "priority": "medium",
-            "assignee": "测试员B",
-            "updated_at": "2026-06-01 11:00:00"
+            "id": "VT-003", "title": "test ticket three", "status": "in_progress",
+            "priority": "low", "assignee": "Wang", "group": "logistics",
+            "location": "Canteen-1", "contact": "13700003333", "deadline": None,
+            "audit_log": [], "updated_at": "2026-06-01 11:00:00"
+        },
+        {
+            "id": "VT-004", "title": "test ticket four", "status": "resolved",
+            "priority": "medium", "assignee": "Li", "group": "it_center",
+            "location": "Admin-101", "contact": "13600004444", "deadline": None,
+            "audit_log": [], "updated_at": "2026-06-01 12:00:00"
         }
-    ]
-    with open(DATA_FILE, 'w', encoding='utf-8') as f:
-        json.dump(test_data, f, ensure_ascii=False, indent=2)
+    ])
+
 
 def run_test(name, test_func):
     try:
@@ -57,347 +86,393 @@ def run_test(name, test_func):
         print(f"[ERROR] {name}: {str(e)}")
         return False
 
-def test_ticket_model_creation():
-    ticket = Ticket(
-        id="TK-TEST",
-        title="测试工单",
-        status="pending",
-        priority="high",
-        assignee="测试员"
-    )
-    return (ticket.id == "TK-TEST" and
-            ticket.title == "测试工单" and
-            ticket.status == "pending" and
-            ticket.priority == "high" and
-            ticket.assignee == "测试员" and
-            ticket.updated_at is not None)
 
-def test_ticket_validation_valid():
+def test_ticket_model_new_fields():
     ticket = Ticket(
-        id="TK-TEST",
-        title="有效工单",
-        status="pending",
-        priority="high",
-        assignee="测试员"
+        id="M-001", title="model test", status="new", priority="high",
+        assignee="", group="dormitory", location="B5-3F", contact="111",
+        deadline="2026-06-10 18:00:00"
     )
-    errors = ticket.validate()
-    return len(errors) == 0
+    d = ticket.to_dict()
+    return (d['group'] == 'dormitory' and
+            d['location'] == 'B5-3F' and
+            d['contact'] == '111' and
+            d['deadline'] == '2026-06-10 18:00:00' and
+            d['audit_log'] == [])
 
-def test_ticket_validation_invalid():
-    ticket = Ticket(
-        id="",
-        title="",
-        status="invalid_status",
-        priority="invalid_priority",
-        assignee=""
-    )
-    errors = ticket.validate()
-    return len(errors) >= 4
 
-def test_ticket_to_dict():
-    ticket = Ticket(
-        id="TK-TEST",
-        title="测试",
-        status="pending",
-        priority="high",
-        assignee="测试员",
-        updated_at="2026-06-01 10:00:00"
-    )
-    data = ticket.to_dict()
-    return (data['id'] == 'TK-TEST' and
-            data['title'] == '测试' and
-            data['status'] == 'pending' and
-            data['priority'] == 'high' and
-            data['assignee'] == '测试员' and
-            data['updated_at'] == '2026-06-01 10:00:00')
-
-def test_ticket_from_dict():
+def test_ticket_from_dict_new_fields():
     data = {
-        "id": "TK-DICT",
-        "title": "从字典创建",
-        "status": "processing",
-        "priority": "medium",
-        "assignee": "测试员",
-        "updated_at": "2026-06-01 10:00:00"
+        "id": "M-002", "title": "from dict", "status": "assigned",
+        "priority": "medium", "assignee": "Tester", "group": "it_center",
+        "location": "Lab", "contact": "222", "deadline": "2026-07-01",
+        "audit_log": [{"time": "2026-06-01 08:00:00", "action": "created", "detail": "x", "operator": "sys"}],
+        "updated_at": "2026-06-01 08:00:00"
     }
-    ticket = Ticket.from_dict(data)
-    return (ticket.id == "TK-DICT" and
-            ticket.title == "从字典创建" and
-            ticket.status == "processing")
+    t = Ticket.from_dict(data)
+    return (t.group == 'it_center' and
+            t.location == 'Lab' and
+            t.contact == '222' and
+            t.deadline == '2026-07-01' and
+            len(t.audit_log) == 1)
 
-def test_load_tickets():
-    tickets = load_tickets()
-    return len(tickets) >= 2 and isinstance(tickets[0], Ticket)
 
-def test_get_ticket_list_all():
-    tickets = services.get_ticket_list()
-    return len(tickets) >= 2
+def test_ticket_validate():
+    t1 = Ticket(id="V-01", title="ok", status="new", priority="high", assignee="", group="dormitory")
+    t2 = Ticket(id="", title="", status="bad", priority="bad", assignee="", group="bad")
+    return len(t1.validate()) == 0 and len(t2.validate()) >= 4
 
-def test_get_ticket_list_filter_status():
-    pending_tickets = services.get_ticket_list(status='pending')
-    processing_tickets = services.get_ticket_list(status='processing')
-    return (len(pending_tickets) == 1 and
-            pending_tickets[0]['status'] == 'pending' and
-            len(processing_tickets) == 1 and
-            processing_tickets[0]['status'] == 'processing')
 
-def test_get_ticket_by_id():
-    ticket = services.get_ticket_by_id('TEST-001')
-    return ticket is not None and ticket['id'] == 'TEST-001'
+def test_audit_log_entry():
+    t = Ticket(id="A-01", title="audit", status="new", priority="high", assignee="", group="logistics")
+    t.add_audit_entry('status_change', 'new -> assigned', 'admin')
+    return (len(t.audit_log) == 1 and
+            t.audit_log[0]['action'] == 'status_change' and
+            t.audit_log[0]['detail'] == 'new -> assigned' and
+            t.audit_log[0]['operator'] == 'admin')
 
-def test_get_ticket_by_id_not_found():
-    ticket = services.get_ticket_by_id('NONEXISTENT')
-    return ticket is None
 
-def test_get_status_statistics():
-    stats = services.get_status_statistics()
-    return (stats.get('total') == 2 and
-            stats.get('pending') == 1 and
-            stats.get('processing') == 1 and
-            stats.get('completed') == 0)
+def test_valid_transitions_closed_cannot_reopen():
+    return VALID_TRANSITIONS.get('closed', []) == []
 
-def test_generate_ticket_id():
-    ticket_id = services.generate_ticket_id()
-    today = datetime.now().strftime('%Y%m%d')
-    return ticket_id.startswith(f'TK-{today}-')
 
-def test_create_ticket():
-    initial_count = len(services.get_ticket_list())
-    result = services.create_ticket(
-        title="新创建的工单",
-        priority="low",
-        assignee="新负责人"
-    )
+def test_valid_transitions_new_allowed():
+    allowed = VALID_TRANSITIONS.get('new', [])
+    return 'assigned' in allowed and 'closed' in allowed and 'in_progress' not in allowed
+
+
+def test_valid_transitions_resolved_only_closed():
+    return VALID_TRANSITIONS.get('resolved', []) == ['closed']
+
+
+def test_create_ticket_default_new():
+    setup_basic_data()
+    result = services.create_ticket(title="new one", priority="high", group="dormitory")
+    return (result['success'] and
+            result['ticket']['status'] == 'new' and
+            result['ticket']['group'] == 'dormitory')
+
+
+def test_create_ticket_with_assignee_auto_assigned():
+    setup_basic_data()
+    result = services.create_ticket(title="assigned one", priority="medium", group="it_center", assignee="Zhang")
+    return (result['success'] and
+            result['ticket']['status'] == 'assigned' and
+            result['ticket']['assignee'] == 'Zhang')
+
+
+def test_create_ticket_audit_log_written():
+    setup_basic_data()
+    result = services.create_ticket(title="audit test", priority="low", group="logistics")
     if not result['success']:
         return False
-    new_count = len(services.get_ticket_list())
-    return (new_count == initial_count + 1 and
-            result['ticket']['title'] == '新创建的工单' and
-            result['ticket']['status'] == 'pending')
+    log = result['ticket']['audit_log']
+    return len(log) >= 1 and log[0]['action'] == 'created'
+
+
+def test_create_ticket_with_assignee_audit():
+    setup_basic_data()
+    result = services.create_ticket(title="auto assign", priority="medium", group="dormitory", assignee="Li")
+    if not result['success']:
+        return False
+    log = result['ticket']['audit_log']
+    return len(log) >= 1 and log[0]['action'] == 'assigned'
+
 
 def test_create_ticket_validation_error():
-    result = services.create_ticket(
-        title="",
-        priority="invalid",
-        assignee=""
-    )
-    return not result['success'] and len(result['errors']) > 0
+    setup_basic_data()
+    result = services.create_ticket(title="", priority="invalid", group="bad_group")
+    return not result['success'] and len(result['errors']) >= 2
 
-def test_update_ticket_status():
-    result = services.update_ticket_status('TEST-001', 'processing')
+
+def test_duplicate_detection():
+    setup_basic_data()
+    result = services.create_ticket(
+        title="test ticket one!!!",
+        priority="high", group="dormitory",
+        location="5-301", contact="13800001111"
+    )
     if not result['success']:
         return False
-    ticket = services.get_ticket_by_id('TEST-001')
-    return ticket['status'] == 'processing'
+    return 'warnings' in result and len(result['warnings']) > 0
 
-def test_update_ticket_status_invalid():
-    result = services.update_ticket_status('TEST-001', 'invalid_status')
+
+def test_duplicate_not_triggered_for_different_location():
+    setup_basic_data()
+    result = services.create_ticket(
+        title="test ticket one",
+        priority="high", group="dormitory",
+        location="DIFFERENT-LOC", contact="13800001111"
+    )
+    return result['success'] and 'warnings' not in result
+
+
+def test_duplicate_not_triggered_for_resolved():
+    setup_basic_data()
+    result = services.create_ticket(
+        title="test ticket four",
+        priority="medium", group="it_center",
+        location="Admin-101", contact="13600004444"
+    )
+    return result['success'] and 'warnings' not in result
+
+
+def test_status_transition_valid():
+    setup_basic_data()
+    result = services.update_ticket_status('VT-001', 'assigned')
+    return (result['success'] and
+            result['ticket']['status'] == 'assigned')
+
+
+def test_status_transition_audit_written():
+    setup_basic_data()
+    result = services.update_ticket_status('VT-001', 'assigned')
+    if not result['success']:
+        return False
+    log = result['ticket']['audit_log']
+    return len(log) >= 2 and log[-1]['action'] == 'status_change'
+
+
+def test_status_transition_invalid_closed_to_new():
+    setup_basic_data()
+    write_test_data([
+        {"id": "CL-001", "title": "closed one", "status": "closed", "priority": "low",
+         "assignee": "X", "group": "dormitory", "location": "", "contact": "",
+         "deadline": None, "audit_log": [], "updated_at": "2026-06-01 09:00:00"}
+    ])
+    result = services.update_ticket_status('CL-001', 'new')
     return not result['success']
 
-def test_update_ticket_status_not_found():
-    result = services.update_ticket_status('NONEXISTENT', 'completed')
+
+def test_status_transition_invalid_resolved_to_new():
+    setup_basic_data()
+    result = services.update_ticket_status('VT-004', 'new')
     return not result['success']
+
+
+def test_status_transition_invalid_skip():
+    setup_basic_data()
+    result = services.update_ticket_status('VT-001', 'in_progress')
+    return not result['success']
+
+
+def test_assign_ticket():
+    setup_basic_data()
+    result = services.assign_ticket('VT-001', 'NewPerson')
+    return (result['success'] and
+            result['ticket']['assignee'] == 'NewPerson' and
+            result['ticket']['status'] == 'assigned')
+
+
+def test_assign_new_ticket_auto_status():
+    setup_basic_data()
+    result = services.assign_ticket('VT-001', 'NewPerson')
+    return result['success'] and result['ticket']['status'] == 'assigned'
+
+
+def test_assign_audit_written():
+    setup_basic_data()
+    result = services.assign_ticket('VT-001', 'NewPerson')
+    if not result['success']:
+        return False
+    log = result['ticket']['audit_log']
+    return len(log) >= 2 and log[-1]['action'] == 'assign'
+
+
+def test_filter_by_status():
+    setup_basic_data()
+    result = services.get_ticket_list(status='new')
+    return len(result) == 1 and result[0]['status'] == 'new'
+
+
+def test_filter_by_priority():
+    setup_basic_data()
+    result = services.get_ticket_list(priority='high')
+    return len(result) == 1 and result[0]['priority'] == 'high'
+
+
+def test_filter_by_group():
+    setup_basic_data()
+    result = services.get_ticket_list(group='it_center')
+    return len(result) == 2 and all(t['group'] == 'it_center' for t in result)
+
+
+def test_filter_by_keyword():
+    setup_basic_data()
+    result = services.get_ticket_list(keyword='one')
+    return len(result) == 1 and 'one' in result[0]['title']
+
+
+def test_combined_filters():
+    setup_basic_data()
+    result = services.get_ticket_list(status='assigned', group='it_center')
+    return len(result) == 1 and result[0]['id'] == 'VT-002'
+
+
+def test_combined_filters_no_result():
+    setup_basic_data()
+    result = services.get_ticket_list(status='new', group='it_center')
+    return len(result) == 0
+
+
+def test_filter_empty_values():
+    setup_basic_data()
+    result = services.get_ticket_list(status='', priority='', group='', keyword='')
+    return len(result) == 4
+
+
+def test_filter_case_insensitive():
+    setup_basic_data()
+    r1 = services.get_ticket_list(status='NEW')
+    r2 = services.get_ticket_list(group='IT_CENTER')
+    return len(r1) == 1 and len(r2) == 2
+
+
+def test_stats_basic():
+    setup_basic_data()
+    stats = services.get_full_statistics()
+    return (stats['total'] == 4 and
+            stats['pending_total'] == 3 and
+            stats.get('new', 0) == 1 and
+            stats.get('assigned', 0) == 1 and
+            stats.get('in_progress', 0) == 1)
+
+
+def test_stats_resolved_closed_not_in_pending():
+    setup_basic_data()
+    stats = services.get_full_statistics()
+    return stats['pending_total'] == stats.get('new', 0) + stats.get('assigned', 0) + stats.get('in_progress', 0) + stats.get('blocked', 0)
+
+
+def test_stats_by_group():
+    setup_basic_data()
+    stats = services.get_full_statistics()
+    bg = stats.get('by_group', {})
+    return bg.get('dormitory', 0) == 1 and bg.get('it_center', 0) == 1 and bg.get('logistics', 0) == 1
+
+
+def test_overdue_statistics():
+    past = (datetime.now() - timedelta(days=2)).strftime('%Y-%m-%d %H:%M:%S')
+    write_test_data([
+        {"id": "OD-001", "title": "overdue ticket", "status": "in_progress",
+         "priority": "high", "assignee": "X", "group": "dormitory",
+         "location": "", "contact": "", "deadline": past,
+         "audit_log": [], "updated_at": "2026-06-01 09:00:00"}
+    ])
+    stats = services.get_overdue_statistics()
+    return stats['overdue'] >= 1
+
+
+def test_near_overdue_statistics():
+    near = (datetime.now() + timedelta(hours=12)).strftime('%Y-%m-%d %H:%M:%S')
+    write_test_data([
+        {"id": "ND-001", "title": "near overdue ticket", "status": "in_progress",
+         "priority": "high", "assignee": "X", "group": "it_center",
+         "location": "", "contact": "", "deadline": near,
+         "audit_log": [], "updated_at": "2026-06-01 09:00:00"}
+    ])
+    stats = services.get_overdue_statistics()
+    return stats['near_overdue'] >= 1
+
+
+def test_overdue_excludes_resolved():
+    past = (datetime.now() - timedelta(days=2)).strftime('%Y-%m-%d %H:%M:%S')
+    write_test_data([
+        {"id": "ROD-001", "title": "resolved overdue", "status": "resolved",
+         "priority": "high", "assignee": "X", "group": "logistics",
+         "location": "", "contact": "", "deadline": past,
+         "audit_log": [], "updated_at": "2026-06-01 09:00:00"}
+    ])
+    stats = services.get_overdue_statistics()
+    return stats['overdue'] == 0
+
+
+def test_full_statistics_includes_all():
+    setup_basic_data()
+    stats = services.get_full_statistics()
+    return ('total' in stats and
+            'pending_total' in stats and
+            'by_group' in stats and
+            'overdue' in stats and
+            'near_overdue' in stats)
+
 
 def test_data_persistence():
-    ticket_id = 'TEST-001'
-    original = services.get_ticket_by_id(ticket_id)
-    services.update_ticket_status(ticket_id, 'completed')
-    reloaded = services.get_ticket_by_id(ticket_id)
-    return reloaded['status'] == 'completed'
+    setup_basic_data()
+    services.update_ticket_status('VT-001', 'assigned')
+    ticket = services.get_ticket_by_id('VT-001')
+    return ticket['status'] == 'assigned'
 
-def test_priority_statistics():
-    stats = services.get_priority_statistics()
-    return stats.get('high') >= 1 and stats.get('medium') >= 1
 
-def setup_mixed_case_test_data():
-    test_data = [
-        {
-            "id": "CASE-001",
-            "title": "大写状态工单",
-            "status": "PENDING",
-            "priority": "HIGH",
-            "assignee": "测试员A",
-            "updated_at": "2026-06-01 10:00:00"
-        },
-        {
-            "id": "CASE-002",
-            "title": "混合大小写工单",
-            "status": "Processing",
-            "priority": "Medium",
-            "assignee": "测试员B",
-            "updated_at": "2026-06-01 11:00:00"
-        },
-        {
-            "id": "CASE-003",
-            "title": "正常小写工单",
-            "status": "completed",
-            "priority": "low",
-            "assignee": "测试员C",
-            "updated_at": "2026-06-01 12:00:00"
-        }
-    ]
-    with open(DATA_FILE, 'w', encoding='utf-8') as f:
-        json.dump(test_data, f, ensure_ascii=False, indent=2)
+def test_assign_not_found():
+    setup_basic_data()
+    result = services.assign_ticket('NONEXISTENT', 'Someone')
+    return not result['success']
 
-def test_status_filter_case_insensitive():
-    setup_mixed_case_test_data()
-    result_upper = services.get_ticket_list(status='PENDING')
-    result_lower = services.get_ticket_list(status='pending')
-    result_mixed = services.get_ticket_list(status='Pending')
-    return (len(result_upper) == 1 and
-            len(result_lower) == 1 and
-            len(result_mixed) == 1 and
-            result_upper[0]['id'] == 'CASE-001' and
-            result_lower[0]['id'] == 'CASE-001' and
-            result_mixed[0]['id'] == 'CASE-001')
 
-def test_priority_filter_case_insensitive():
-    setup_mixed_case_test_data()
-    result_upper = services.get_ticket_list(priority='HIGH')
-    result_lower = services.get_ticket_list(priority='high')
-    result_mixed = services.get_ticket_list(priority='High')
-    return (len(result_upper) == 1 and
-            len(result_lower) == 1 and
-            len(result_mixed) == 1 and
-            result_upper[0]['priority'] == 'HIGH' and
-            result_lower[0]['priority'] == 'HIGH' and
-            result_mixed[0]['priority'] == 'HIGH')
+def test_status_change_not_found():
+    setup_basic_data()
+    result = services.update_ticket_status('NONEXISTENT', 'assigned')
+    return not result['success']
 
-def test_update_status_case_insensitive():
-    setup_mixed_case_test_data()
-    result = services.update_ticket_status('CASE-001', 'PROCESSING')
-    if not result['success']:
-        return False
-    ticket = services.get_ticket_by_id('CASE-001')
-    return ticket['status'] == 'processing'
-
-def setup_archived_test_data():
-    test_data = [
-        {
-            "id": "ARCH-001",
-            "title": "正常待处理工单",
-            "status": "pending",
-            "priority": "high",
-            "assignee": "测试员A",
-            "updated_at": "2026-06-01 10:00:00"
-        },
-        {
-            "id": "ARCH-002",
-            "title": "已归档工单",
-            "status": "archived",
-            "priority": "medium",
-            "assignee": "测试员B",
-            "updated_at": "2026-06-01 11:00:00"
-        },
-        {
-            "id": "ARCH-003",
-            "title": "已关闭工单",
-            "status": "closed",
-            "priority": "low",
-            "assignee": "测试员C",
-            "updated_at": "2026-06-01 12:00:00"
-        },
-        {
-            "id": "ARCH-004",
-            "title": "处理中工单",
-            "status": "processing",
-            "priority": "medium",
-            "assignee": "测试员D",
-            "updated_at": "2026-06-01 13:00:00"
-        },
-        {
-            "id": "ARCH-005",
-            "title": "已完成工单",
-            "status": "completed",
-            "priority": "low",
-            "assignee": "测试员E",
-            "updated_at": "2026-06-01 14:00:00"
-        }
-    ]
-    with open(DATA_FILE, 'w', encoding='utf-8') as f:
-        json.dump(test_data, f, ensure_ascii=False, indent=2)
-
-def test_stats_exclude_archived_and_closed():
-    setup_archived_test_data()
-    stats = services.get_status_statistics()
-    return (stats.get('total') == 5 and
-            stats.get('pending') == 1 and
-            stats.get('processing') == 1 and
-            stats.get('completed') == 1)
-
-def test_pending_count_excludes_non_pending():
-    setup_archived_test_data()
-    stats = services.get_status_statistics()
-    return stats.get('pending') == 1
-
-def test_create_ticket_updates_pending_count():
-    setup_archived_test_data()
-    initial_stats = services.get_status_statistics()
-    initial_pending = initial_stats.get('pending', 0)
-
-    result = services.create_ticket(
-        title="新增测试工单",
-        priority="medium",
-        assignee="测试员F"
-    )
-    if not result['success']:
-        return False
-
-    new_stats = services.get_status_statistics()
-    new_pending = new_stats.get('pending', 0)
-
-    return new_pending == initial_pending + 1
-
-def test_mixed_case_status_statistics():
-    setup_mixed_case_test_data()
-    stats = services.get_status_statistics()
-    return (stats.get('total') == 3 and
-            stats.get('pending') == 1 and
-            stats.get('processing') == 1 and
-            stats.get('completed') == 1)
 
 def main():
     print("=" * 60)
-    print("Campus Ops Lite - 核心数据流验证脚本")
+    print("Campus Ops Lite - Verification Script")
     print("=" * 60)
     print()
 
     backup_data()
-    setup_test_data()
+    setup_basic_data()
 
     tests = [
-        ("Ticket 模型创建", test_ticket_model_creation),
-        ("Ticket 验证 - 有效数据", test_ticket_validation_valid),
-        ("Ticket 验证 - 无效数据", test_ticket_validation_invalid),
-        ("Ticket 转字典", test_ticket_to_dict),
-        ("Ticket 从字典创建", test_ticket_from_dict),
-        ("加载工单列表", test_load_tickets),
-        ("获取全部工单列表", test_get_ticket_list_all),
-        ("按状态筛选工单", test_get_ticket_list_filter_status),
-        ("按ID获取工单（存在）", test_get_ticket_by_id),
-        ("按ID获取工单（不存在）", test_get_ticket_by_id_not_found),
-        ("状态统计", test_get_status_statistics),
-        ("生成工单编号", test_generate_ticket_id),
-        ("创建工单", test_create_ticket),
-        ("创建工单 - 验证失败", test_create_ticket_validation_error),
-        ("更新工单状态", test_update_ticket_status),
-        ("更新工单状态 - 无效状态", test_update_ticket_status_invalid),
-        ("更新工单状态 - 不存在", test_update_ticket_status_not_found),
-        ("数据持久化", test_data_persistence),
-        ("优先级统计", test_priority_statistics),
-        ("[回归] 状态筛选大小写不敏感", test_status_filter_case_insensitive),
-        ("[回归] 优先级筛选大小写不敏感", test_priority_filter_case_insensitive),
-        ("[回归] 更新状态大小写不敏感", test_update_status_case_insensitive),
-        ("[回归] 统计排除归档/关闭状态", test_stats_exclude_archived_and_closed),
-        ("[回归] 待处理数量排除非pending", test_pending_count_excludes_non_pending),
-        ("[回归] 创建工单后pending数增加", test_create_ticket_updates_pending_count),
-        ("[回归] 混合大小写状态统计", test_mixed_case_status_statistics),
+        ("Ticket model - new fields", test_ticket_model_new_fields),
+        ("Ticket from_dict - new fields", test_ticket_from_dict_new_fields),
+        ("Ticket validation", test_ticket_validate),
+        ("Audit log entry", test_audit_log_entry),
+        ("Transitions - closed cannot reopen", test_valid_transitions_closed_cannot_reopen),
+        ("Transitions - new allowed paths", test_valid_transitions_new_allowed),
+        ("Transitions - resolved only to closed", test_valid_transitions_resolved_only_closed),
+        ("Create ticket - default new", test_create_ticket_default_new),
+        ("Create ticket - with assignee auto assigned", test_create_ticket_with_assignee_auto_assigned),
+        ("Create ticket - audit log written", test_create_ticket_audit_log_written),
+        ("Create ticket - assignee audit", test_create_ticket_with_assignee_audit),
+        ("Create ticket - validation error", test_create_ticket_validation_error),
+        ("Duplicate - detected for similar", test_duplicate_detection),
+        ("Duplicate - not triggered different location", test_duplicate_not_triggered_for_different_location),
+        ("Duplicate - not triggered for resolved", test_duplicate_not_triggered_for_resolved),
+        ("Status transition - valid", test_status_transition_valid),
+        ("Status transition - audit written", test_status_transition_audit_written),
+        ("Status transition - closed to new blocked", test_status_transition_invalid_closed_to_new),
+        ("Status transition - resolved to new blocked", test_status_transition_invalid_resolved_to_new),
+        ("Status transition - skip step blocked", test_status_transition_invalid_skip),
+        ("Assign ticket", test_assign_ticket),
+        ("Assign new ticket - auto status", test_assign_new_ticket_auto_status),
+        ("Assign - audit written", test_assign_audit_written),
+        ("Filter - by status", test_filter_by_status),
+        ("Filter - by priority", test_filter_by_priority),
+        ("Filter - by group", test_filter_by_group),
+        ("Filter - by keyword", test_filter_by_keyword),
+        ("Filter - combined status+group", test_combined_filters),
+        ("Filter - combined no result", test_combined_filters_no_result),
+        ("Filter - empty values", test_filter_empty_values),
+        ("Filter - case insensitive", test_filter_case_insensitive),
+        ("Stats - basic counts", test_stats_basic),
+        ("Stats - resolved/closed not in pending", test_stats_resolved_closed_not_in_pending),
+        ("Stats - by group pending", test_stats_by_group),
+        ("Overdue - detection", test_overdue_statistics),
+        ("Near overdue - detection", test_near_overdue_statistics),
+        ("Overdue - excludes resolved", test_overdue_excludes_resolved),
+        ("Full statistics - all fields", test_full_statistics_includes_all),
+        ("Data persistence", test_data_persistence),
+        ("Assign not found", test_assign_not_found),
+        ("Status change not found", test_status_change_not_found),
     ]
 
     passed = 0
     failed = 0
 
-    print("运行测试用例...")
+    print("Running test cases...")
     print("-" * 60)
 
     for name, test_func in tests:
@@ -407,7 +482,7 @@ def main():
             failed += 1
 
     print("-" * 60)
-    print(f"\n测试完成: 通过 {passed} / {len(tests)}, 失败 {failed}")
+    print(f"\nResults: {passed} / {len(tests)} passed, {failed} failed")
 
     restore_data()
 
@@ -417,6 +492,7 @@ def main():
     else:
         print(f"\n{failed} test(s) failed. Please check the code.")
         return 1
+
 
 if __name__ == '__main__':
     sys.exit(main())

@@ -3,83 +3,151 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Campus Ops Lite - 校园工单协同系统</title>
+    <title>Campus Ops Lite</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
         <header class="header">
-            <h1>🏫 Campus Ops Lite</h1>
+            <h1>Campus Ops Lite</h1>
             <p class="subtitle">校园工单协同系统</p>
         </header>
 
         <section class="stats-section">
-            <h2>📊 统计摘要</h2>
+            <h2>统计摘要</h2>
             <div class="stats-cards" id="statsCards">
-                <div class="stat-card">
+                <div class="stat-card stat-total">
                     <span class="stat-label">总工单</span>
-                    <span class="stat-value" id="totalCount">0</span>
+                    <span class="stat-value" id="statTotal">0</span>
                 </div>
-                <div class="stat-card pending">
+                <div class="stat-card stat-pending">
                     <span class="stat-label">待处理</span>
-                    <span class="stat-value" id="pendingCount">0</span>
+                    <span class="stat-value" id="statPending">0</span>
                 </div>
-                <div class="stat-card processing">
-                    <span class="stat-label">处理中</span>
-                    <span class="stat-value" id="processingCount">0</span>
+                <div class="stat-card stat-overdue">
+                    <span class="stat-label">已逾期</span>
+                    <span class="stat-value" id="statOverdue">0</span>
                 </div>
-                <div class="stat-card completed">
-                    <span class="stat-label">已完成</span>
-                    <span class="stat-value" id="completedCount">0</span>
+                <div class="stat-card stat-near-overdue">
+                    <span class="stat-label">即将逾期</span>
+                    <span class="stat-value" id="statNearOverdue">0</span>
+                </div>
+                <div class="stat-card stat-group-dormitory">
+                    <span class="stat-label">宿舍管理(待处理)</span>
+                    <span class="stat-value" id="statGroupDormitory">0</span>
+                </div>
+                <div class="stat-card stat-group-logistics">
+                    <span class="stat-label">后勤保障(待处理)</span>
+                    <span class="stat-value" id="statGroupLogistics">0</span>
+                </div>
+                <div class="stat-card stat-group-it">
+                    <span class="stat-label">信息中心(待处理)</span>
+                    <span class="stat-value" id="statGroupIt">0</span>
                 </div>
             </div>
         </section>
 
-        <section class="action-section">
-            <div class="filter-group">
-                <label for="statusFilter">🔍 按状态筛选：</label>
-                <select id="statusFilter">
-                    <option value="">全部</option>
-                    <option value="pending">待处理</option>
-                    <option value="processing">处理中</option>
-                    <option value="completed">已完成</option>
-                </select>
+        <section class="filter-section">
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label for="filterStatus">状态</label>
+                    <select id="filterStatus">
+                        <option value="">全部</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="filterPriority">优先级</label>
+                    <select id="filterPriority">
+                        <option value="">全部</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="filterGroup">分组</label>
+                    <select id="filterGroup">
+                        <option value="">全部</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="filterKeyword">关键词</label>
+                    <input type="text" id="filterKeyword" placeholder="搜索标题/地点/负责人/联系方式">
+                </div>
             </div>
-            <button class="btn btn-primary" id="addTicketBtn">➕ 新增工单</button>
+            <button class="btn btn-primary" id="createTicketBtn">新增工单</button>
         </section>
+
+        <div class="warning-section" id="warningSection" style="display:none;">
+            <div class="warning-header">重复工单警告</div>
+            <div id="warningContent"></div>
+            <button class="btn btn-secondary btn-sm" id="warningClose">关闭</button>
+        </div>
 
         <section class="ticket-section">
-            <h2>📋 工单列表</h2>
-            <div class="ticket-list" id="ticketList">
-            </div>
+            <h2>工单列表</h2>
+            <div class="ticket-list" id="ticketList"></div>
         </section>
 
-        <div class="modal" id="ticketModal">
+        <div class="modal" id="createModal">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h3 id="modalTitle">新增工单</h3>
-                    <span class="close" id="closeModal">&times;</span>
+                    <h3>新增工单</h3>
+                    <span class="modal-close" data-modal="createModal">&times;</span>
                 </div>
                 <div class="modal-body">
-                    <form id="ticketForm">
+                    <form id="createForm">
                         <div class="form-group">
-                            <label for="title">标题 *</label>
-                            <input type="text" id="title" name="title" required>
+                            <label for="createTitle">标题 *</label>
+                            <input type="text" id="createTitle" name="title" required>
                         </div>
                         <div class="form-group">
-                            <label for="priority">优先级 *</label>
-                            <select id="priority" name="priority" required>
-                                <option value="low">低</option>
-                                <option value="medium" selected>中</option>
-                                <option value="high">高</option>
-                            </select>
+                            <label for="createPriority">优先级 *</label>
+                            <select id="createPriority" name="priority" required></select>
                         </div>
                         <div class="form-group">
-                            <label for="assignee">负责人 *</label>
-                            <input type="text" id="assignee" name="assignee" required>
+                            <label for="createGroup">分组 *</label>
+                            <select id="createGroup" name="group" required></select>
                         </div>
-                        <button type="submit" class="btn btn-primary">提交</button>
-                        <button type="button" class="btn btn-secondary" id="cancelBtn">取消</button>
+                        <div class="form-group">
+                            <label for="createAssignee">负责人</label>
+                            <input type="text" id="createAssignee" name="assignee">
+                        </div>
+                        <div class="form-group">
+                            <label for="createLocation">地点</label>
+                            <input type="text" id="createLocation" name="location">
+                        </div>
+                        <div class="form-group">
+                            <label for="createContact">联系方式</label>
+                            <input type="text" id="createContact" name="contact">
+                        </div>
+                        <div class="form-group">
+                            <label for="createDeadline">截止时间</label>
+                            <input type="datetime-local" id="createDeadline" name="deadline">
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">提交</button>
+                            <button type="button" class="btn btn-secondary modal-cancel" data-modal="createModal">取消</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal" id="assignModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>指派工单</h3>
+                    <span class="modal-close" data-modal="assignModal">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <form id="assignForm">
+                        <input type="hidden" id="assignTicketId">
+                        <div class="form-group">
+                            <label for="assignAssignee">负责人 *</label>
+                            <input type="text" id="assignAssignee" name="assignee" required>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">确认指派</button>
+                            <button type="button" class="btn btn-secondary modal-cancel" data-modal="assignModal">取消</button>
+                        </div>
                     </form>
                 </div>
             </div>

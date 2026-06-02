@@ -29,12 +29,15 @@ class RequestHandler(BaseHTTPRequestHandler):
             if path == '/api/tickets':
                 status = query.get('status', [None])[0]
                 priority = query.get('priority', [None])[0]
-                result = services.get_ticket_list(status=status, priority=priority)
+                group = query.get('group', [None])[0]
+                keyword = query.get('keyword', [None])[0]
+                result = services.get_ticket_list(
+                    status=status, priority=priority, group=group, keyword=keyword)
                 self._set_headers()
                 self.wfile.write(json.dumps(result, ensure_ascii=False).encode('utf-8'))
 
             elif path == '/api/tickets/stats':
-                result = services.get_status_statistics()
+                result = services.get_full_statistics()
                 self._set_headers()
                 self.wfile.write(json.dumps(result, ensure_ascii=False).encode('utf-8'))
 
@@ -46,20 +49,28 @@ class RequestHandler(BaseHTTPRequestHandler):
                     self.wfile.write(json.dumps(result, ensure_ascii=False).encode('utf-8'))
                 else:
                     self._set_headers(404)
-                    self.wfile.write(json.dumps({'error': '工单不存在'}, ensure_ascii=False).encode('utf-8'))
+                    self.wfile.write(json.dumps({'error': 'not found'}, ensure_ascii=False).encode('utf-8'))
+
+            elif path == '/api/meta':
+                from models import STATUS_OPTIONS, PRIORITY_OPTIONS, GROUP_OPTIONS, STATUS_LABELS, GROUP_LABELS, VALID_TRANSITIONS
+                meta = {
+                    'statuses': [{'value': s, 'label': STATUS_LABELS.get(s, s)} for s in STATUS_OPTIONS],
+                    'priorities': [{'value': p, 'label': {'low': 'low', 'medium': 'medium', 'high': 'high'}[p]} for p in PRIORITY_OPTIONS],
+                    'groups': [{'value': g, 'label': GROUP_LABELS.get(g, g)} for g in GROUP_OPTIONS],
+                    'transitions': VALID_TRANSITIONS
+                }
+                self._set_headers()
+                self.wfile.write(json.dumps(meta, ensure_ascii=False).encode('utf-8'))
 
             elif path == '/' or path == '/index.html':
                 self._serve_static('index.html', 'text/html; charset=utf-8')
-
             elif path == '/style.css':
                 self._serve_static('style.css', 'text/css; charset=utf-8')
-
             elif path == '/app.js':
                 self._serve_static('app.js', 'application/javascript; charset=utf-8')
-
             else:
                 self._set_headers(404)
-                self.wfile.write(json.dumps({'error': '路径不存在'}, ensure_ascii=False).encode('utf-8'))
+                self.wfile.write(json.dumps({'error': 'not found'}, ensure_ascii=False).encode('utf-8'))
 
         except Exception as e:
             self._set_headers(500)
@@ -68,7 +79,6 @@ class RequestHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         parsed = urlparse(self.path)
         path = parsed.path
-
         try:
             content_length = int(self.headers.get('Content-Length', 0))
             body = self.rfile.read(content_length).decode('utf-8')
@@ -78,7 +88,12 @@ class RequestHandler(BaseHTTPRequestHandler):
                 result = services.create_ticket(
                     title=data.get('title', ''),
                     priority=data.get('priority', 'medium'),
-                    assignee=data.get('assignee', '')
+                    group=data.get('group', 'logistics'),
+                    assignee=data.get('assignee', ''),
+                    location=data.get('location', ''),
+                    contact=data.get('contact', ''),
+                    deadline=data.get('deadline'),
+                    operator=data.get('operator', 'web')
                 )
                 if result['success']:
                     self._set_headers(201)
@@ -86,27 +101,13 @@ class RequestHandler(BaseHTTPRequestHandler):
                     self._set_headers(400)
                 self.wfile.write(json.dumps(result, ensure_ascii=False).encode('utf-8'))
 
-            else:
-                self._set_headers(404)
-                self.wfile.write(json.dumps({'error': '路径不存在'}, ensure_ascii=False).encode('utf-8'))
-
-        except Exception as e:
-            self._set_headers(500)
-            self.wfile.write(json.dumps({'error': str(e)}, ensure_ascii=False).encode('utf-8'))
-
-    def do_PUT(self):
-        parsed = urlparse(self.path)
-        path = parsed.path
-
-        try:
-            content_length = int(self.headers.get('Content-Length', 0))
-            body = self.rfile.read(content_length).decode('utf-8')
-            data = json.loads(body) if body else {}
-
-            if path.startswith('/api/tickets/'):
-                ticket_id = path.split('/')[-1]
-                new_status = data.get('status', '')
-                result = services.update_ticket_status(ticket_id, new_status)
+            elif path.startswith('/api/tickets/') and path.endswith('/assign'):
+                ticket_id = path.split('/')[3]
+                result = services.assign_ticket(
+                    ticket_id,
+                    assignee=data.get('assignee', ''),
+                    operator=data.get('operator', 'web')
+                )
                 if result['success']:
                     self._set_headers(200)
                 else:
@@ -115,7 +116,33 @@ class RequestHandler(BaseHTTPRequestHandler):
 
             else:
                 self._set_headers(404)
-                self.wfile.write(json.dumps({'error': '路径不存在'}, ensure_ascii=False).encode('utf-8'))
+                self.wfile.write(json.dumps({'error': 'not found'}, ensure_ascii=False).encode('utf-8'))
+
+        except Exception as e:
+            self._set_headers(500)
+            self.wfile.write(json.dumps({'error': str(e)}, ensure_ascii=False).encode('utf-8'))
+
+    def do_PUT(self):
+        parsed = urlparse(self.path)
+        path = parsed.path
+        try:
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length).decode('utf-8')
+            data = json.loads(body) if body else {}
+
+            if path.startswith('/api/tickets/') and not path.endswith('/assign'):
+                ticket_id = path.split('/')[-1]
+                new_status = data.get('status', '')
+                result = services.update_ticket_status(
+                    ticket_id, new_status, operator=data.get('operator', 'web'))
+                if result['success']:
+                    self._set_headers(200)
+                else:
+                    self._set_headers(400)
+                self.wfile.write(json.dumps(result, ensure_ascii=False).encode('utf-8'))
+            else:
+                self._set_headers(404)
+                self.wfile.write(json.dumps({'error': 'not found'}, ensure_ascii=False).encode('utf-8'))
 
         except Exception as e:
             self._set_headers(500)
@@ -131,7 +158,7 @@ class RequestHandler(BaseHTTPRequestHandler):
             self.wfile.write(content.encode('utf-8'))
         else:
             self._set_headers(404)
-            self.wfile.write(json.dumps({'error': '文件不存在'}, ensure_ascii=False).encode('utf-8'))
+            self.wfile.write(json.dumps({'error': 'file not found'}, ensure_ascii=False).encode('utf-8'))
 
     def log_message(self, format, *args):
         pass

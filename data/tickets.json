@@ -1,42 +1,129 @@
 [
   {
     "id": "TK-20260601-001",
-    "title": "教学楼A区空调故障报修",
-    "status": "pending",
+    "title": "宿舍楼5栋3楼热水器故障",
+    "status": "in_progress",
     "priority": "high",
     "assignee": "张运维",
-    "updated_at": "2026-06-01 09:30:00"
+    "group": "dormitory",
+    "location": "5栋3楼",
+    "contact": "13800001111",
+    "deadline": "2026-06-05 18:00:00",
+    "audit_log": [
+      {"time": "2026-06-01 09:15:00", "action": "created", "detail": "status=new, title=宿舍楼5栋3楼热水器故障", "operator": "system"},
+      {"time": "2026-06-01 10:30:00", "action": "assign", "detail": "assigned to 张运维, status new->assigned", "operator": "李明"},
+      {"time": "2026-06-01 11:00:00", "action": "status_change", "detail": "assigned -> in_progress", "operator": "张运维"}
+    ],
+    "updated_at": "2026-06-01 11:00:00"
   },
   {
     "id": "TK-20260601-002",
-    "title": "图书馆网络设备维护",
-    "status": "processing",
+    "title": "校园网账号无法登录",
+    "status": "assigned",
     "priority": "medium",
-    "assignee": "李技术",
-    "updated_at": "2026-06-01 10:15:00"
-  },
-  {
-    "id": "TK-20260601-003",
-    "title": "食堂POS系统升级",
-    "status": "completed",
-    "priority": "low",
-    "assignee": "王工程",
+    "assignee": "王芳",
+    "group": "it_center",
+    "location": "图书馆201",
+    "contact": "13900002222",
+    "deadline": "2026-06-03 18:00:00",
+    "audit_log": [
+      {"time": "2026-06-01 11:00:00", "action": "created", "detail": "status=new, title=校园网账号无法登录", "operator": "system"},
+      {"time": "2026-06-01 14:20:00", "action": "assign", "detail": "assigned to 王芳, status new->assigned", "operator": "陈辉"}
+    ],
     "updated_at": "2026-06-01 14:20:00"
   },
   {
-    "id": "TK-20260602-001",
-    "title": "宿舍楼热水器检修",
-    "status": "pending",
+    "id": "TK-20260601-003",
+    "title": "食堂蒸柜设备维护",
+    "status": "new",
+    "priority": "low",
+    "assignee": "",
+    "group": "logistics",
+    "location": "二食堂后厨",
+    "contact": "13700003333",
+    "deadline": null,
+    "audit_log": [
+      {"time": "2026-06-01 15:45:00", "action": "created", "detail": "status=new, title=食堂蒸柜设备维护", "operator": "system"}
+    ],
+    "updated_at": "2026-06-01 15:45:00"
+  },
+  {
+    "id": "TK-20260601-004",
+    "title": "宿舍8栋412门锁损坏",
+    "status": "blocked",
     "priority": "high",
-    "assignee": "赵维修",
-    "updated_at": "2026-06-02 08:45:00"
+    "assignee": "刘洋",
+    "group": "dormitory",
+    "location": "8栋412室",
+    "contact": "13600004444",
+    "deadline": "2026-05-30 18:00:00",
+    "audit_log": [
+      {"time": "2026-05-28 08:30:00", "action": "created", "detail": "status=new, title=宿舍8栋412门锁损坏", "operator": "system"},
+      {"time": "2026-05-29 10:00:00", "action": "status_change", "detail": "in_progress -> blocked, 等待锁具配件到货", "operator": "刘洋"}
+    ],
+    "updated_at": "2026-05-29 10:00:00"
+  },
+  {
+    "id": "TK-20260602-001",
+    "title": "校园卡充值系统报错",
+    "status": "in_progress",
+    "priority": "high",
+    "assignee": "赵军",
+    "group": "it_center",
+    "location": "行政楼卡务中心",
+    "contact": "13500005555",
+    "deadline": "2026-06-04 18:00:00",
+    "audit_log": [
+      {"time": "2026-06-02 08:00:00", "action": "created", "detail": "status=new, title=校园卡充值系统报错", "operator": "system"},
+      {"time": "2026-06-02 09:30:00", "action": "status_change", "detail": "assigned -> in_progress", "operator": "赵军"}
+    ],
+    "updated_at": "2026-06-02 09:30:00"
   },
   {
     "id": "TK-20260602-002",
-    "title": "校园监控系统巡检",
-    "status": "processing",
+    "title": "教室投影仪色彩异常",
+    "status": "resolved",
     "priority": "medium",
-    "assignee": "李技术",
-    "updated_at": "2026-06-02 09:00:00"
+    "assignee": "孙磊",
+    "group": "logistics",
+    "location": "教学楼A301",
+    "contact": "13400006666",
+    "deadline": null,
+    "audit_log": [
+      {"time": "2026-06-02 07:30:00", "action": "created", "detail": "status=new, title=教室投影仪色彩异常", "operator": "system"},
+      {"time": "2026-06-02 11:00:00", "action": "status_change", "detail": "in_progress -> resolved, 更换灯泡并校准", "operator": "孙磊"}
+    ],
+    "updated_at": "2026-06-02 11:00:00"
+  },
+  {
+    "id": "TK-20260602-003",
+    "title": "学生邮箱密码重置失败",
+    "status": "new",
+    "priority": "medium",
+    "assignee": "",
+    "group": "it_center",
+    "location": "线上/远程",
+    "contact": "13300007777",
+    "deadline": null,
+    "audit_log": [
+      {"time": "2026-06-02 10:15:00", "action": "created", "detail": "status=new, title=学生邮箱密码重置失败", "operator": "system"}
+    ],
+    "updated_at": "2026-06-02 10:15:00"
+  },
+  {
+    "id": "TK-20260602-004",
+    "title": "宿舍3栋208空调不制冷",
+    "status": "assigned",
+    "priority": "high",
+    "assignee": "张运维",
+    "group": "dormitory",
+    "location": "3栋208室",
+    "contact": "13200008888",
+    "deadline": "2026-06-01 18:00:00",
+    "audit_log": [
+      {"time": "2026-06-01 16:00:00", "action": "created", "detail": "status=new, title=宿舍3栋208空调不制冷", "operator": "system"},
+      {"time": "2026-06-01 17:00:00", "action": "assign", "detail": "assigned to 张运维, status new->assigned", "operator": "李明"}
+    ],
+    "updated_at": "2026-06-01 17:00:00"
   }
 ]
