@@ -4,6 +4,8 @@ import json
 import shutil
 from datetime import datetime
 
+os.environ['PYTHONDONTWRITEBYTECODE'] = '1'
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
 
 from models import Ticket, load_tickets, save_tickets, STATUS_OPTIONS, PRIORITY_OPTIONS, DATA_FILE
@@ -46,13 +48,13 @@ def run_test(name, test_func):
     try:
         result = test_func()
         if result:
-            print(f"✅ {name}: PASS")
+            print(f"[PASS] {name}")
             return True
         else:
-            print(f"❌ {name}: FAIL")
+            print(f"[FAIL] {name}")
             return False
     except Exception as e:
-        print(f"❌ {name}: ERROR - {str(e)}")
+        print(f"[ERROR] {name}: {str(e)}")
         return False
 
 def test_ticket_model_creation():
@@ -256,10 +258,10 @@ def main():
     restore_data()
 
     if failed == 0:
-        print("\n🎉 所有测试通过！核心数据流验证成功。")
+        print("\nAll tests passed! Core data flow verification successful.")
         return 0
     else:
-        print(f"\n⚠️  有 {failed} 个测试失败，请检查代码。")
+        print(f"\n{failed} test(s) failed. Please check the code.")
         return 1
 
 if __name__ == '__main__':
