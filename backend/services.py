@@ -18,9 +18,11 @@ def generate_ticket_id():
 def get_ticket_list(status=None, priority=None):
     tickets = load_tickets()
     if status:
-        tickets = [t for t in tickets if t.status == status]
+        status_lower = status.lower()
+        tickets = [t for t in tickets if t.status.lower() == status_lower]
     if priority:
-        tickets = [t for t in tickets if t.priority == priority]
+        priority_lower = priority.lower()
+        tickets = [t for t in tickets if t.priority.lower() == priority_lower]
     tickets.sort(key=lambda t: t.updated_at, reverse=True)
     return [t.to_dict() for t in tickets]
 
@@ -51,12 +53,13 @@ def create_ticket(title, priority, assignee):
 
 
 def update_ticket_status(ticket_id, new_status):
-    if new_status not in STATUS_OPTIONS:
+    new_status_lower = new_status.lower() if new_status else ''
+    if new_status_lower not in STATUS_OPTIONS:
         return {'success': False, 'errors': [f'状态必须是 {STATUS_OPTIONS} 之一']}
     tickets = load_tickets()
     for ticket in tickets:
         if ticket.id == ticket_id:
-            ticket.status = new_status
+            ticket.status = new_status_lower
             ticket.updated_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             save_tickets(tickets)
             return {'success': True, 'ticket': ticket.to_dict()}
@@ -67,9 +70,12 @@ def get_status_statistics():
     tickets = load_tickets()
     stats = {status: 0 for status in STATUS_OPTIONS}
     for ticket in tickets:
-        stats[ticket.status] += 1
+        status_lower = ticket.status.lower()
+        if status_lower in STATUS_OPTIONS:
+            stats[status_lower] += 1
     total = len(tickets)
     stats['total'] = total
+    stats['pending'] = stats.get('pending', 0)
     return stats
 
 

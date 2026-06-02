@@ -150,6 +150,8 @@ function setupEventListeners() {
         if (result.success) {
             document.getElementById('ticketForm').reset();
             document.getElementById('ticketModal').classList.remove('show');
+            currentStatusFilter = '';
+            document.getElementById('statusFilter').value = '';
             await refreshData();
         } else {
             alert('创建失败：' + (result.errors || []).join(', '));
